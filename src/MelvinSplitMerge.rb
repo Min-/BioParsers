@@ -9,12 +9,15 @@ def splitAndMerge(nl, dir, file1, file2, output)
   # split
   f1 = dir + "/" + file1
   f2 = dir + "/" + file2
-  %x{split -l #{nl} #{f1}}
-  %x{mv ./xa* #{dir + "/tmp1"}; rm ./xa*}
-  %x{split -l #{nl} #{f2}; mv ./xa* #{dir + "/tmp2"}; rm ./xa*}
+  tmp1 = dir + "/tmp1"
+  tmp2 = dir + "/tmp2"
+  tmp3 = dir + "/tmp3"
+  %x{split -l #{nl} #{f1}; mv ./xa* #{tmp1}; rm ./xa*}
+  %x{split -l #{nl} #{f2}; mv ./xa* #{tmp2}; rm ./xa*}
   # merge
-  %x{for i in xaa xab xac xad xae xaf xag; do stack exec BioParsers mergePairedEndFq #{dir + "/tmp1/"}$i #{dir + "/tmp2/"}$i > #{dir + "/tmp3/"}$i; done}
-  %x{cat #{dir + "/tmp3/xa*"} > #{dir + "/" output}}
+  %x{for i in xaa xab xac xad xae xaf xag; do stack exec BioParsers mergePairedEndFq #{tmp1}/$i #{tmp2}/$i > #{tmp3}/$i; done}
+  %x{cat #{tmp3}/xa* > #{dir + "/" output}}
+  %x{rm #{tmp1}/xa*; rm #{tmp2}/xa*; rm #{tmp3}/xa*}
 end
 
 @nl = ARGV[0]
