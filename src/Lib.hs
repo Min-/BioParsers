@@ -6,11 +6,13 @@ module Lib
 
 import System.Environment
 import MergeFastq (mergePairedEndFq)
+import qualified Safe as S
 
-import Data.Text.IO as TextIO
+import qualified Data.ByteString.Char8 as TextIO (putStrLn)
+
 
 bioParser = do
   args <- getArgs
-  case (head args) of 
+  case (S.headDef "mergePairedEndFq" args) of 
      "mergePairedEndFq" -> mergePairedEndFq (args!!1) (args!!2) 
      otherwise -> TextIO.putStrLn ""

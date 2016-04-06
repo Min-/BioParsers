@@ -27,37 +27,43 @@ import qualified Data.HashMap.Lazy as M
 import qualified Data.Maybe as Maybe
 import qualified Data.Foldable as F (all)
 import Data.Traversable (sequenceA)
-import qualified Data.Text as T
-import qualified Data.Text.IO as TextIO
+import qualified Data.ByteString as T
+import qualified Data.ByteString.Char8 as TextIO (putStrLn)
+--import qualified Data.ByteString.IO as TextIO
 
-import qualified Data.Attoparsec.Text as AP
+import qualified Data.Attoparsec.ByteString as AP
+import qualified Data.ByteString.Internal as Bi
 
 data Fastq = Fastq
-    { name_fq      :: !T.Text
-    , namelabel_fq :: !T.Text
-    , seq_fq       :: !T.Text
-    , qual_fq      :: !T.Text
+    { name_fq      :: !T.ByteString
+    , namelabel_fq :: !T.ByteString 
+    , seq_fq       :: !T.ByteString
+    , qual_fq      :: !T.ByteString
     } deriving (Show, Read, Eq)
 
 --fastqParser :: Bl.ByteString -> AP.Parser Fastq
 --fastqParser = do
 --  return
+nl = Bi.c2w '\n'
+ps = Bi.c2w '+'
+
+isEndOfLine w = w == 13 || w == 10
 
 fastqParser = do
-  name <- AP.takeTill ((==) ' ')
-  namelabel <- AP.takeTill AP.isEndOfLine
-  _ <- AP.endOfLine
-  seq <- AP.takeTill AP.isEndOfLine
-  _ <- AP.endOfLine
-  _ <- AP.char '+'
-  _ <- AP.endOfLine
-  qual <- AP.takeTill AP.isEndOfLine
-  _ <- AP.endOfLine
+  name <- AP.takeTill Bi.isSpaceWord8
+  namelabel <- AP.takeTill isEndOfLine
+  _ <- AP.word8 nl
+  seq <- AP.takeTill isEndOfLine
+  _ <- AP.word8 nl
+  _ <- AP.word8 ps
+  _ <- AP.word8 nl
+  qual <- AP.takeTill isEndOfLine
+  _ <- AP.word8 nl
   return $ Fastq name namelabel seq qual
 
 readFq = AP.many1' $ fastqParser
 
-parseFq fq = AP.maybeResult $ AP.feed (AP.parse readFq fq) (T.pack "")
+parseFq fq = AP.maybeResult $ AP.feed (AP.parse readFq fq) T.empty
 
 
 
@@ -79,14 +85,14 @@ showFastq fq = T.concat [ name_fq fq
                         , qual_fq fq, "\n"]
 
 example = do
-  f1 <- TextIO.readFile "../data/s1.1000.fastq"
+  f1 <- T.readFile "../data/s1.1000.fastq"
   return $ parseFq f1
 
 mergePairedEndFq input1 input2 = do
-  f1 <- parseFq <$> TextIO.readFile input1
-  f2 <- parseFq <$> TextIO.readFile input2
+  f1 <- parseFq <$> T.readFile input1
+  f2 <- parseFq <$> T.readFile input2
   let res = liftA2 mergeFastq f1 f2
   if res == Nothing 
   then TextIO.putStrLn "nothing"
-  else TextIO.putStr $ T.concat $ map showFastq (Maybe.fromJust res)
+  else T.putStr $ T.concat $ map showFastq (Maybe.fromJust res)
 
