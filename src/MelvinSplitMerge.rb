@@ -5,7 +5,7 @@
 ## Min Zhang
 ## April 6, 2016
 
-def splitAndMerge nl dir file1 file2 output
+def splitAndMerge(nl, dir, file1, file2, output)
   # split
   f1 = dir + "/" + file1
   f2 = dir + "/" + file2
@@ -24,7 +24,7 @@ output = ARGV[4]
 
 def main
   puts "MelvinSplitMerge 40000000 /media/martinlab/analysis/mz_P12_heart_dropseq/raw mh1.s1.l2.r1 mh1.s1.l2.r2 mh1.s1.l2" 
-  splitAndMerge nl dir file1 file2 output
+  splitAndMerge(nl, dir, file1, file2, output)
 end
 
 main
