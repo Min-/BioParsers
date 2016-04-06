@@ -6,6 +6,7 @@ Min Zhang
 Date: March 28, 2016
 Version: v0.1.0
 README: Serious parsing using Haskell Parser instead of data munging.
+
 -}
 module ParseSam
 where

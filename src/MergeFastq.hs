@@ -6,13 +6,19 @@ Min Zhang
 Date: April 5, 2016
 Version: v0.1.0
 README: Merge Paired-end fastq file to one file (stitch reads together)
+
+NOTE: Currently in v0.1.0, it assumes that two fastq files are sorted in the same order; non-paired reads are thrown away
+
 -}
+
 module MergeFastq
+  (mergePairedEndFq)
 where
 
 import qualified Data.Char as C
 import Control.Applicative
 import qualified Data.List as L
+import qualified Data.Maybe as Maybe
 import Control.Monad (fmap)
 import Data.Ord (comparing)
 import Data.Function (on)
@@ -49,9 +55,9 @@ fastqParser = do
   _ <- AP.endOfLine
   return $ Fastq name namelabel seq qual
 
-readFastq = AP.many1' $ fastqParser
+readFq = AP.many1' $ fastqParser
 
-parseFastq fq = AP.maybeResult $ AP.feed (AP.parse readFastq fq) (T.pack "")
+parseFq fq = AP.maybeResult $ AP.feed (AP.parse readFq fq) (T.pack "")
 
 
 
@@ -66,11 +72,21 @@ mergeFastq (x:xs) (y:ys)
   | name_fq x < name_fq y  = mergeFastq xs (y:ys)
   | otherwise              = mergeFastq (x:xs) ys
 
+showFastq fq = T.concat [ name_fq fq
+                        , namelabel_fq fq, "\n"
+                        , seq_fq fq, "\n"
+                        , "+", "\n"
+                        , qual_fq fq, "\n"]
+
 example = do
   f1 <- TextIO.readFile "../data/s1.1000.fastq"
-  return $ parseFastq f1
+  return $ parseFq f1
 
-main = do
-  f1 <- parseFastq <$> TextIO.readFile "../data/s1.1000.fastq"
-  f2 <- parseFastq <$> TextIO.readFile "../data/s2.1000.fastq"
-  return $ liftA2 mergeFastq f1 f2
+mergePairedEndFq input1 input2 = do
+  f1 <- parseFq <$> TextIO.readFile input1
+  f2 <- parseFq <$> TextIO.readFile input2
+  let res = liftA2 mergeFastq f1 f2
+  if res == Nothing 
+  then TextIO.putStrLn "nothing"
+  else TextIO.putStr $ T.concat $ map showFastq (Maybe.fromJust res)
+
