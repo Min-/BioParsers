@@ -66,8 +66,8 @@ mergeFastq a [] = a
 mergeFastq (x:xs) (y:ys) 
   | name_fq x == name_fq y = Fastq (name_fq x)
                                    (namelabel_fq x)
-                                   (T.append (seq_fq x) (seq_fq y))
-                                   (T.append (qual_fq x) (qual_fq y)) : 
+                                   (T.append (T.take 20 $ seq_fq x) (seq_fq y))     -- for dropseq only, needs to fix later
+                                   (T.append (T.take 20 $ qual_fq x) (qual_fq y)) : 
                              mergeFastq xs ys
   | name_fq x < name_fq y  = mergeFastq xs (y:ys)
   | otherwise              = mergeFastq (x:xs) ys
