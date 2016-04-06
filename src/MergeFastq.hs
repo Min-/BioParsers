@@ -29,7 +29,6 @@ import qualified Data.Foldable as F (all)
 import Data.Traversable (sequenceA)
 import qualified Data.ByteString as T
 import qualified Data.ByteString.Char8 as TextIO (putStrLn)
---import qualified Data.ByteString.IO as TextIO
 
 import qualified Data.Attoparsec.ByteString as AP
 import qualified Data.ByteString.Internal as Bi
@@ -67,9 +66,9 @@ parseFq fq = AP.maybeResult $ AP.feed (AP.parse readFq fq) T.empty
 
 
 
-mergeFastq [] b = b
-mergeFastq a [] = a
-mergeFastq (x:xs) (y:ys) 
+mergeFastq [] y = []
+mergeFastq x [] = []
+mergeFastq (x:xs) (y:ys) a b
   | name_fq x == name_fq y = Fastq (name_fq x)
                                    (namelabel_fq x)
                                    (T.append (T.take 20 $ seq_fq x) (seq_fq y))     -- for dropseq only, needs to fix later
