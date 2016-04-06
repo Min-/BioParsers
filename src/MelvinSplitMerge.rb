@@ -9,8 +9,8 @@ def splitAndMerge(nl, dir, file1, file2, output)
   # split
   f1 = dir + "/" + file1
   f2 = dir + "/" + file2
-  %x{split -l #{nl} #{f1} | mv #{dir + "/xa*"} #{dir + "/tmp1"}}
-  %x{split -l #{nl} #{f2} | mv #{dir + "/xa*"} #{dir + "/tmp2"}}
+  %x{split -l #{nl} #{f1}; mv #{dir + "/xa*"} #{dir + "/tmp1"}}
+  %x{split -l #{nl} #{f2}; mv #{dir + "/xa*"} #{dir + "/tmp2"}}
   # merge
   %x{for i in xaa xab xac xad xae xaf xag; do stack exec BioParsers mergePairedEndFq #{dir + "/tmp1/"}$i #{dir + "/tmp2/"}$i > #{dir + "/tmp3/"}$i; done}
   %x{cat #{dir + "/tmp3/xa*"} > #{output}}
