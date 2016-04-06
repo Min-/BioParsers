@@ -33,10 +33,10 @@ import qualified Data.Text.IO as TextIO
 import qualified Data.Attoparsec.Text as AP
 
 data Fastq = Fastq
-    { name_fq      :: T.Text
-    , namelabel_fq :: T.Text
-    , seq_fq       :: T.Text
-    , qual_fq      :: T.Text
+    { name_fq      :: !T.Text
+    , namelabel_fq :: !T.Text
+    , seq_fq       :: !T.Text
+    , qual_fq      :: !T.Text
     } deriving (Show, Read, Eq)
 
 --fastqParser :: Bl.ByteString -> AP.Parser Fastq
