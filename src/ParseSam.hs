@@ -61,8 +61,8 @@ instance Eq Sam where
         | otherwise = False
 
 instance Ord Sam where
-    (Sam name1 flag1 chr1 start1 _ _ _ _ _ _ _ _) `compare`
-          (Sam name2 flag2 chr2 start2 _ _ _ _ _ _ _ _) 
+    (Sam name1 flag1 chr1 start1 mapq1 cigar1 r1 p1 t1 s1 q1 tag1) `compare`
+          (Sam name2 flag2 chr2 start2 mapq2 cigar2 r2 p2 t2 s2 q2 tag2) 
         | and [chr1 == chr2, start1 == start2, flag1 == flag2] = compare name1 name2
         | and [chr1 == chr2, start1 == start2] = compare flag1 flag2
         | chr1 == chr2 = compare start1 start2
