@@ -210,9 +210,9 @@ example6 = do
     m <- countGeneTags (take 3 $ repeat "/Users/minzhang/Documents/private_git/BioParsers/data/merged.tagged.aligned.50k.taggenes.sam")
     return $ getGenes m
 --   
---geneCountMatrix ms = M.map (L.foldl' unionTwoMaps m0) ms 
---    where m0 = getGenes ms
+geneCountMatrix ms = M.map (M.unionWith (+) m0) ms 
+    where m0 = getGenes ms
 --
---example7 = do
---    m <- countGeneTags (take 3 $ repeat "/Users/minzhang/Documents/private_git/BioParsers/data/merged.tagged.aligned.50k.taggenes.sam")
---    return $ geneCountMatrix m
+example7 = do
+    m <- countGeneTags (take 3 $ repeat "/Users/minzhang/Documents/private_git/BioParsers/data/merged.tagged.aligned.50k.taggenes.sam")
+    return $ geneCountMatrix m
