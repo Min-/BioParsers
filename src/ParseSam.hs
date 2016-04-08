@@ -210,9 +210,21 @@ example6 = do
     m <- countGeneTags (take 3 $ repeat "/Users/minzhang/Documents/private_git/BioParsers/data/merged.tagged.aligned.50k.taggenes.sam")
     return $ getGenes m
 --   
-geneCountMatrix ms = M.map (M.unionWith (+) m0) ms 
+geneCountMatrix  ms = B.intercalate "\n" $ 
+                      map (B.intercalate "\t") $ 
+                      L.transpose $ 
+                      combineCountName $ 
+                      M.toList $
+                      M.map (M.toList . M.unionWith (+) m0) ms 
     where m0 = getGenes ms
+          takeGeneCount (bc, genes) = bc : map (intToBs . snd) genes
+          takeGeneName (bc, genes) = "genename" : map fst genes
+          combineCountName = liftA2 (:) (takeGeneName . head) (map takeGeneCount)
+          
+          
 --
-example7 = do
-    m <- countGeneTags (take 3 $ repeat "/Users/minzhang/Documents/private_git/BioParsers/data/merged.tagged.aligned.50k.taggenes.sam")
-    return $ geneCountMatrix m
+samToMatrix inputpaths outputpath = do
+    m <- countGeneTags inputpaths
+    B.writeFile outputpath (geneCountMatrix m)
+
+
