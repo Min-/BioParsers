@@ -31,6 +31,8 @@ import qualified Data.ByteString.Internal as Bi
 import qualified Data.Attoparsec.ByteString as AP
 import qualified Data.Attoparsec.ByteString.Char8 as AP8
 
+import ParsingUtils
+
 -- TODO: need to think about what if we want to add more fields, is this structure general enough?
 data Gtf = Gtf
     { chr_gtf     :: !B.ByteString
@@ -69,27 +71,33 @@ data Bed = Bed
            , strand_bed  :: !B.ByteString}
            deriving (Read, Show, Eq)
 
---fastqParser :: Bl.ByteString -> AP.Parser Fastq
---fastqParser = do
---  return
-nl = Bi.c2w '\n'
-ps = Bi.c2w '+'
-pd = Bi.c2w '#'
-tb = Bi.c2w '\t'
-sm = Bi.c2w ';'
-qt = Bi.c2w '\"'
+--
+data Interval = Interval
+           { chr_interval   :: !B.ByteString
+           , start_interval :: !Int
+           , end_interval   :: !Int
+           } deriving (Read, Show)
 
-bsToInt :: B.ByteString -> Int
-bsToInt = read . init . drop 1 . show
+instance Eq Interval where
+    (Interval chr1 start1 end1) == (Interval chr2 start2 end2)
+      | and [chr1 == chr2, start1 <= start2, start2 <= end1, end1 <= end2, start1 < end1, start2 < end2] = True
+      | and [chr1 == chr2, start2 <= start1, start1 <= end2, end2 <= end1, start1 < end1, start2 < end2] = True
+      | and [chr1 == chr2, start1 <= start2, end1 >= end2, start1 < end1, start2 < end2] = True
+      | and [chr1 == chr2, start2 <= start1, end2 >= end1, start1 < end1, start2 < end2] = True
+      | otherwise = False
 
-intToBs :: Int -> Bi.ByteString
-intToBs = B8.pack . show 
+instance Ord Interval where
+    (Interval chr1 start1 end1) `compare` (Interval chr2 start2 end2)
+       | and [chr1 == chr2, end1 < start2, start1 < end1, start2 < end2] = LT
+       | and [chr1 == chr2, end2 < start1, start1 < end1, start2 < end2] = GT
+       | otherwise = compare chr1 chr2
 
-isEndOfLine w = w == 13 || w == 10
 
-isDigit w = w - 48 <= 9
+gtfToInterval :: Gtf -> Interval
+gtfToInterval (Gtf chr _ _ start end _ strand _ _) = Interval chr start end
 
-isQt w = w == qt
+bedToInterval :: Bed -> Interval
+bedToInterval (Bed chr start end _ _ _) = Interval chr start end
 
 readGtf g = AP.maybeResult $ AP.feed (AP.parse (AP.many1' gtfLineParser) g) B.empty
   
