@@ -66,6 +66,7 @@ instance Ord Sam where
         | and [chr1 == chr2, start1 == start2, flag1 == flag2] = compare name1 name2
         | and [chr1 == chr2, start1 == start2] = compare flag1 flag2
         | chr1 == chr2 = compare start1 start2
+        | otherwise = EQ
 
 samParser = do
     name  <- AP.takeTill Bi.isSpaceWord8
