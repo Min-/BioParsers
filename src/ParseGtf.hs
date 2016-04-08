@@ -17,22 +17,21 @@ where
 import qualified Data.Char as C
 import Control.Applicative
 import qualified Data.List as L
+import qualified Data.Set as Set
 import qualified Data.Maybe as Maybe
 import Control.Monad (fmap)
 import Data.Ord (comparing)
 import Data.Function (on)
 import qualified Safe as S
-import qualified Data.HashMap.Lazy as M
 import qualified Data.Maybe as Maybe
-import qualified Data.Foldable as F (all)
-import qualified Data.ByteString as B
-import qualified Data.ByteString.Char8 as TextIO (putStrLn)
 
+import qualified Data.ByteString as B
+import qualified Data.ByteString.Char8 as B8 (putStrLn, pack)
+import qualified Data.ByteString.Internal as Bi
 import qualified Data.Attoparsec.ByteString as AP
 import qualified Data.Attoparsec.ByteString.Char8 as AP8
-import qualified Data.ByteString.Internal as Bi
 
-
+-- TODO: need to think about what if we want to add more fields, is this structure general enough?
 data Gtf = Gtf
     { chr_gtf     :: !B.ByteString
     , source_gtf  :: !B.ByteString
@@ -49,6 +48,8 @@ instance Eq Gtf where
     (Gtf chr1 _ _ start1 end1 _  strand1 _ _) == (Gtf chr2 _ _ start2 end2 _ strand2 _ _)
       | and [chr1 == chr2, start1 <= start2, start2 <= end1, end1 <= end2, start1 < end1, start2 < end2] = True
       | and [chr1 == chr2, start2 <= start1, start1 <= end2, end2 <= end1, start1 < end1, start2 < end2] = True
+      | and [chr1 == chr2, start1 <= start2, end1 >= end2, start1 < end1, start2 < end2] = True
+      | and [chr1 == chr2, start2 <= start1, end2 >= end1, start1 < end1, start2 < end2] = True
       | otherwise = False
 
 
@@ -57,7 +58,16 @@ instance Ord Gtf where
        | and [chr1 == chr2, end1 < start2, start1 < end1, start2 < end2] = LT
        | and [chr1 == chr2, end2 < start1, start1 < end1, start2 < end2] = GT
        | otherwise = compare chr1 chr2
-         
+
+-- 
+data Bed = Bed 
+           { chr_bed   :: !B.ByteString
+           , start_bed :: !Int
+           , end_bed   :: !Int
+           , name_bed  :: !B.ByteString
+           , score_bed :: !B.ByteString
+           , strand_bed  :: !B.ByteString}
+           deriving (Read, Show, Eq)
 
 --fastqParser :: Bl.ByteString -> AP.Parser Fastq
 --fastqParser = do
@@ -72,21 +82,16 @@ qt = Bi.c2w '\"'
 bsToInt :: B.ByteString -> Int
 bsToInt = read . init . drop 1 . show
 
+intToBs :: Int -> Bi.ByteString
+intToBs = B8.pack . show 
+
 isEndOfLine w = w == 13 || w == 10
 
 isDigit w = w - 48 <= 9
 
 isQt w = w == qt
 
-example = do
-    input <- B.take 10000 <$> B.readFile "/Users/minzhang/Documents/private_git/BioParsers/data/gencode.vM8.annotation.exon.gtf"
-    let xs = Maybe.fromJust $ parseGtf input
-    print $ map length $ sortGtf xs
-    let ys = map mergeGtfList $ sortGtf xs
-    print $ length $ head ys 
-    print $ length $ last ys
-
-parseGtf g = AP.maybeResult $ AP.feed (AP.parse (AP.many1' gtfLineParser) g) B.empty
+readGtf g = AP.maybeResult $ AP.feed (AP.parse (AP.many1' gtfLineParser) g) B.empty
   
 gtfLineParser = do
     chr <- AP.takeTill Bi.isSpaceWord8
@@ -112,6 +117,7 @@ gtfLineParser = do
     let endInt = bsToInt end
     return $ Gtf chr source feature startInt endInt score strand frame name
 
+-- sort by strand
 sortGtf :: [Gtf] -> [[Gtf]]
 sortGtf = map L.sort . L.groupBy ((==) `on` strand_gtf) . L.sortBy (comparing strand_gtf) 
 
@@ -124,9 +130,10 @@ mergeGtf g1 g2 = Gtf (chr_gtf g1)
                      (score_gtf g1)
                      (strand_gtf g1)
                      (frame_gtf g1)
-                     (if n1 == n2 then n1 else B.append n1 n2)
+                     (if n1 == n2 then n1 else mergeName n1 n2)
                          where n1 = gene_name_gtf g1
                                n2 = gene_name_gtf g2
+                               mergeName x1 x2 = B.intercalate "," $ Set.toList $ Set.fromList $ x2 : B.split (Bi.c2w ',') x1
 
 mergeGtfList :: [Gtf] -> [Gtf]
 mergeGtfList [] = []
@@ -137,3 +144,61 @@ mergeGtfList xs
   | a /= b = a : mergeGtfList (drop 1 xs)
     where a = head xs
           b = head $ drop 1 xs
+
+showGtf :: Gtf -> Bi.ByteString
+showGtf (Gtf chr source feature start end score strand frame gene_name) =
+    B.intercalate "\t" [ chr, source, feature
+                       , intToBs start
+                       , intToBs end
+                       , score
+                       , strand
+                       , frame
+                       , B.concat ["gene_name \"", gene_name, "\";\n"]
+                       ]
+
+outputGtf :: [Gtf] -> Bi.ByteString
+outputGtf = B.concat . map showGtf 
+
+gtfToBed :: Gtf -> Bed
+gtfToBed (Gtf chr source feature start end score strand frame name) =
+    Bed chr start end (B.concat [name, "_", intToBs start]) score strand 
+
+showBed :: Bed -> Bi.ByteString
+showBed (Bed chr start end name score strand) =
+    B.intercalate "\t" [ chr
+                       , intToBs start
+                       , intToBs end
+                       , name, score, strand
+                       , "\n"
+                       ]
+
+outputBed :: [Bed] -> Bi.ByteString
+outputBed = B.concat . map showBed
+
+
+example = do
+    input <- B.take 10000 <$> B.readFile "/Users/minzhang/Documents/private_git/BioParsers/data/gencode.vM8.annotation.exon.gtf"
+    let xs = Maybe.fromJust $ readGtf input
+    print $ map length $ sortGtf xs
+    let ys = map mergeGtfList $ sortGtf xs
+    print $ length $ head ys 
+    print $ last ys
+    let z = B.concat $ map showGtf $ xs
+    let res = Maybe.fromJust $ readGtf z
+    print res
+
+collapseGtf input outputs = do
+    gtf <- Maybe.fromJust . readGtf <$> B.readFile input
+    let [plusStrand, minusStrand] = sortGtf gtf
+    let plusStrandMerged = mergeGtfList plusStrand
+    let minusStrandMerged = mergeGtfList minusStrand
+    let outputPlus = outputs ++ "plus.gtf" 
+    let outputMinus = outputs ++ "minus.gtf"
+    B.writeFile outputPlus (outputGtf plusStrandMerged)
+    B.writeFile outputMinus (outputGtf minusStrandMerged)
+ -- output Bed files to look in IGV
+ --   B.writeFile (outputPlus ++ ".original.bed") (outputBed $ map gtfToBed plusStrand)
+ --   B.writeFile (outputPlus ++ ".bed") (outputBed $ map gtfToBed plusStrandMerged)
+ --   B.writeFile (outputMinus ++ ".bed") (outputBed $ map gtfToBed minusStrandMerged)
+    
+    

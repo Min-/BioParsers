@@ -6,9 +6,12 @@
 **.bai
 **.sam
 **.fastq
+**.fq
 **.fasta
 **.fa
 **.gtf
+**.bed
+**.vcf
 reducedGenome/
 bin/
 .cabal-sandbox/

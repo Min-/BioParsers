@@ -4,17 +4,20 @@ module Lib
     ( bioParser
     ) where
 
-import System.Environment
 import MergeFastq (mergePairedEndFq)
+import ParseGtf   (collapseGtf)
+
+import System.Environment
 import qualified Safe as S
 
-import qualified Data.ByteString.Char8 as TextIO (putStrLn)
+import qualified Data.ByteString.Char8 as B8 (putStrLn)
 
 
 bioParser = do
   args <- getArgs
   case (S.headDef "mergePairedEndFq" args) of 
      "mergePairedEndFq" -> mergePairedEndFq (args!!1) (args!!2) 
-     otherwise -> TextIO.putStrLn ""
+     "collapseGtf"      -> collapseGtf (args!!1) (args!!2)
+     otherwise -> B8.putStrLn "Not an option"
 
 

@@ -15,7 +15,7 @@ cabal-version:       >=1.10
 
 library
   hs-source-dirs:      src
-  exposed-modules:     Lib, MergeFastq
+  exposed-modules:     Lib, MergeFastq, ParseGtf
   build-depends:       base >= 4.7 && < 5
                      , text>=1.2
                      , bytestring >= 0.10
@@ -23,7 +23,6 @@ library
                      , safe >= 0.3
                      , containers>=0.5
                      , attoparsec >= 0.13
-                     , binary >= 0.7
   default-language:    Haskell2010
 
 executable BioParsers
