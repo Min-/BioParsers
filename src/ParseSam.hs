@@ -122,7 +122,7 @@ annotateSamWithGtf (s:ss) (g:gs)
    | samToInterval 50 s < gtfToInterval g =  (addNoName s) : annotateSamWithGtf ss (g:gs)
    | otherwise = annotateSamWithGtf (s:ss) gs
       where addGeneName sam gtf = set tag_sam (appendTag (gene_name_gtf gtf) (view tag_sam sam)) sam
-            appendTag gene oldtag = B.concat [oldtag, "\tGE:", gene] 
+            appendTag gene oldtag = B.concat [oldtag, "\tGE:Z:", gene] 
             addNoName sam = set tag_sam (appendTag "noname" (view tag_sam sam)) sam
             
 
@@ -147,6 +147,7 @@ example3 inputGtf inputSam outputGtfPath outputSamPath = do
     
 test = example3 "/Users/minzhang/Documents/private_git/BioParsers/data/gencode.vM8.annotation.exon.merged.plusminus.gtf" "/Users/minzhang/Documents/private_git/BioParsers/data/merged.tagged.aligned.50k.sam" "/Users/minzhang/Documents/private_git/BioParsers/data/gtfminus.gtf" "/Users/minzhang/Documents/private_git/BioParsers/data/50k.tagged.sam"
 
+tagSamWithGtf :: FilePath -> FilePath -> FilePath -> IO ()
 tagSamWithGtf inputGtf inputSam outputSamPath = do
     [gtfPlus, gtfMinus] <- sortGtf . Maybe.fromJust . readGtf <$> B.readFile inputGtf
     [samPlus, samMinus] <- sortSam . Maybe.fromJust . readSam <$> B.readFile inputSam
@@ -154,3 +155,64 @@ tagSamWithGtf inputGtf inputSam outputSamPath = do
     let resMinus = annotateSamWithGtf samMinus gtfMinus
     let res = resPlus ++ resMinus
     B.writeFile outputSamPath (outputSam res)
+
+----
+taggedSamParser = do
+    _      <- AP.manyTill' AP8.anyChar (AP.string ("XC:Z:"))
+    cellbc <- AP.takeTill Bi.isSpaceWord8
+    _      <- AP.manyTill' AP8.anyChar (AP.string ("XM:Z:"))
+    umi    <- AP.takeTill Bi.isSpaceWord8
+    _      <- AP.manyTill' AP8.anyChar (AP.string ("GE:"))
+    gene   <- AP.takeTill isEndOfLine
+    _      <-  AP.word8 nl
+    return $ (cellbc, [(gene, 1)])
+
+readTaggedSam s = AP.maybeResult (AP.feed (AP.feed (AP.parse (AP.many1' taggedSamParser) s) "\n") B.empty) -- last is not new line, need an extra empty to stop
+
+--TODO:estimateUmi :: [TaggedSam] -> [(Bi.ByteString, Int, Int, Int)]
+
+example4 = do
+    input <- B.readFile "/Users/minzhang/Documents/private_git/BioParsers/data/merged.tagged.aligned.50k.taggenes.sam"
+    let res = Maybe.fromJust $ readTaggedSam input
+    let cellbarcodes = M.map (M.fromListWith (+)) $ M.fromListWith (++) res
+    return $ cellbarcodes
+
+samToHashMap :: FilePath
+               -> IO (M.HashMap Bi.ByteString (M.HashMap Bi.ByteString Int))
+samToHashMap inputpath = do
+    input <-  Maybe.fromJust . readTaggedSam <$> B.readFile inputpath
+    let cellbarcodes = M.map (M.fromListWith (+)) $ M.fromListWith (++) input
+    return $ cellbarcodes
+
+unionTwoMaps m1 m2 =
+    M.unionWith (M.unionWith (+)) m1 m2
+
+countGeneTags inputpaths = do
+    inputs <- mapM samToHashMap inputpaths
+    let f1 = head inputs
+    let rest = drop 1 inputs
+    return $ L.foldl' unionTwoMaps f1 rest
+
+-- count genes per cell
+example5 = do
+    m <- countGeneTags (take 3 $ repeat "/Users/minzhang/Documents/private_git/BioParsers/data/merged.tagged.aligned.50k.taggenes.sam")
+    return $ take 1000 $ L.reverse $ L.sort $ map (M.size . snd) $ M.toList m
+
+getGenes :: M.HashMap a (M.HashMap Bi.ByteString v)
+     -> M.HashMap Bi.ByteString Int
+getGenes = M.fromList .
+           map (\x-> (x, 0)) .
+           concat . 
+           map (M.keys . snd) .
+           M.toList
+
+example6 = do
+    m <- countGeneTags (take 3 $ repeat "/Users/minzhang/Documents/private_git/BioParsers/data/merged.tagged.aligned.50k.taggenes.sam")
+    return $ getGenes m
+--   
+--geneCountMatrix ms = M.map (L.foldl' unionTwoMaps m0) ms 
+--    where m0 = getGenes ms
+--
+--example7 = do
+--    m <- countGeneTags (take 3 $ repeat "/Users/minzhang/Documents/private_git/BioParsers/data/merged.tagged.aligned.50k.taggenes.sam")
+--    return $ geneCountMatrix m
