@@ -8,6 +8,7 @@
 **.fastq
 **.fasta
 **.fa
+**.gtf
 reducedGenome/
 bin/
 .cabal-sandbox/

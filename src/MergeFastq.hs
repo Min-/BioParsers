@@ -68,7 +68,7 @@ parseFq fq = AP.maybeResult $ AP.feed (AP.parse readFq fq) T.empty
 
 mergeFastq [] y = []
 mergeFastq x [] = []
-mergeFastq (x:xs) (y:ys) a b
+mergeFastq (x:xs) (y:ys) 
   | name_fq x == name_fq y = Fastq (name_fq x)
                                    (namelabel_fq x)
                                    (T.append (T.take 20 $ seq_fq x) (seq_fq y))     -- for dropseq only, needs to fix later
@@ -77,6 +77,7 @@ mergeFastq (x:xs) (y:ys) a b
   | name_fq x < name_fq y  = mergeFastq xs (y:ys)
   | otherwise              = mergeFastq (x:xs) ys
 
+showFastq :: Fastq -> Bi.ByteString
 showFastq fq = T.concat [ name_fq fq
                         , namelabel_fq fq, "\n"
                         , seq_fq fq, "\n"

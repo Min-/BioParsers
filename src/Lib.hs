@@ -16,3 +16,5 @@ bioParser = do
   case (S.headDef "mergePairedEndFq" args) of 
      "mergePairedEndFq" -> mergePairedEndFq (args!!1) (args!!2) 
      otherwise -> TextIO.putStrLn ""
+
+
