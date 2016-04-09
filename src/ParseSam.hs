@@ -174,14 +174,14 @@ readTaggedSam s = AP.maybeResult (AP.feed (AP.feed (AP.parse (AP.many1' taggedSa
 example4 = do
     input <- B.readFile "/Users/minzhang/Documents/private_git/BioParsers/data/merged.tagged.aligned.50k.taggenes.sam"
     let res = Maybe.fromJust $ readTaggedSam input
-    let cellbarcodes = M.filter ((>= 10) . length) $ M.fromListWith (++) res
-    return $ length $ cellbarcodes
+    let cellbarcodes = M.filter ((>= 10) . M.size) $ M.map (M.fromListWith (+)) $ M.filter ((>= 50) . length) $ M.fromListWith (++) res
+    return $ cellbarcodes
 
 samToHashMap :: FilePath
                -> IO (M.HashMap Bi.ByteString (M.HashMap Bi.ByteString Int))
 samToHashMap inputpath = do
     input <-  Maybe.fromJust . readTaggedSam <$> B.readFile inputpath
-    let cellbarcodes = M.map (M.fromListWith (+)) $ M.filter ((>= 10) . length) $ M.fromListWith (++) input
+    let cellbarcodes = M.filter ((>=) 200 . M.size) $ M.map (M.fromListWith (+)) $ M.filter ((>= 800) . length) $ M.fromListWith (++) input
     return $ cellbarcodes
 
 unionTwoMaps m1 m2 =
