@@ -1,0 +1,24 @@
+	Fri Apr  8 18:31 2016 Time and Allocation Profiling Report  (Final)
+
+	   BioParsers +RTS -N -p -hd -RTS samToMatrix /Users/minzhang/Documents/private_git/BioParsers/data/merged.tagged.aligned.50k.taggenes.sam /Users/minzhang/Documents/private_git/BioParsers/data/50k.tagged.matrix.txt
+
+	total time  =        2.05 secs   (2046 ticks @ 1000 us, 1 processor)
+	total alloc = 6,171,583,976 bytes  (excludes profiling overheads)
+
+COST CENTRE MODULE  %time %alloc
+
+MAIN        MAIN    100.0  100.0
+
+
+                                                      individual     inherited
+COST CENTRE MODULE                  no.     entries  %time %alloc   %time %alloc
+
+MAIN        MAIN                    115           0  100.0  100.0   100.0  100.0
+ CAF        Lib                     228           0    0.0    0.0     0.0    0.0
+ CAF        ParseSam                224           0    0.0    0.0     0.0    0.0
+ CAF        GHC.Conc.Signal         165           0    0.0    0.0     0.0    0.0
+ CAF        GHC.IO.Encoding         157           0    0.0    0.0     0.0    0.0
+ CAF        GHC.IO.Encoding.Iconv   155           0    0.0    0.0     0.0    0.0
+ CAF        GHC.IO.FD               149           0    0.0    0.0     0.0    0.0
+ CAF        GHC.IO.Handle.FD        147           0    0.0    0.0     0.0    0.0
+ CAF        GHC.Event.Thread        124           0    0.0    0.0     0.0    0.0

@@ -127,7 +127,7 @@ gtfLineParser = do
 
 -- sort by strand
 sortGtf :: [Gtf] -> [[Gtf]]
-sortGtf = map L.sort . L.groupBy ((==) `on` strand_gtf) . L.sortBy (comparing strand_gtf) 
+sortGtf = L.sort . L.groupBy ((==) `on` strand_gtf) . L.sortBy (comparing strand_gtf) 
 
 mergeGtf :: Gtf -> Gtf -> Gtf
 mergeGtf g1 g2 = Gtf (chr_gtf g1)
@@ -205,8 +205,9 @@ collapseGtf input outputs = do
     B.writeFile outputPlus (outputGtf plusStrandMerged)
     B.writeFile outputMinus (outputGtf minusStrandMerged)
  -- output Bed files to look in IGV
- --   B.writeFile (outputPlus ++ ".original.bed") (outputBed $ map gtfToBed plusStrand)
- --   B.writeFile (outputPlus ++ ".bed") (outputBed $ map gtfToBed plusStrandMerged)
- --   B.writeFile (outputMinus ++ ".bed") (outputBed $ map gtfToBed minusStrandMerged)
+    B.writeFile (outputPlus ++ ".original.bed") (outputBed $ map gtfToBed plusStrand)
+    B.writeFile (outputMinus ++ ".original.bed") (outputBed $ map gtfToBed minusStrand)
+    B.writeFile (outputPlus ++ ".bed") (outputBed $ map gtfToBed plusStrandMerged)
+    B.writeFile (outputMinus ++ ".bed") (outputBed $ map gtfToBed minusStrandMerged)
     
     
