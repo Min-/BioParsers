@@ -32,6 +32,8 @@ import qualified Data.ByteString.Internal as Bi
 import qualified Data.Attoparsec.ByteString as AP
 import qualified Data.Attoparsec.ByteString.Char8 as AP8
 
+import System.IO.Posix.MMap (unsafeMMapFile)
+
 import Control.Lens hiding (element)
 
 import ParsingUtils
@@ -180,7 +182,7 @@ example4 = do
 samToHashMap :: FilePath
                -> IO (M.HashMap Bi.ByteString (M.HashMap Bi.ByteString Int))
 samToHashMap inputpath = do
-    input <-  Maybe.fromJust . readTaggedSam <$> B.readFile inputpath
+    input <-  Maybe.fromJust . readTaggedSam <$> unsafeMMapFile inputpath
     let cellbarcodes = M.filter ((>=) 200 . M.size) $ M.map (M.fromListWith (+)) $ M.filter ((>= 800) . length) $ M.fromListWith (++) input
     return $ cellbarcodes
 
