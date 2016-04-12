@@ -31,6 +31,8 @@ import qualified Data.ByteString.Internal as Bi
 import qualified Data.Attoparsec.ByteString as AP
 import qualified Data.Attoparsec.ByteString.Char8 as AP8
 
+import System.IO.Posix.MMap (unsafeMMapFile)
+
 import ParsingUtils
 
 -- TODO: need to think about what if we want to add more fields, is this structure general enough?
@@ -47,19 +49,18 @@ data Gtf = Gtf
     } deriving (Show, Read)
 
 instance Eq Gtf where
-    (Gtf chr1 _ _ start1 end1 _  strand1 _ _) == (Gtf chr2 _ _ start2 end2 _ strand2 _ _)
-      | and [chr1 == chr2, start1 <= start2, start2 <= end1, end1 <= end2, start1 < end1, start2 < end2] = True
-      | and [chr1 == chr2, start2 <= start1, start1 <= end2, end2 <= end1, start1 < end1, start2 < end2] = True
-      | and [chr1 == chr2, start1 <= start2, end1 >= end2, start1 < end1, start2 < end2] = True
-      | and [chr1 == chr2, start2 <= start1, end2 >= end1, start1 < end1, start2 < end2] = True
-      | otherwise = False
-
+    (Gtf chr1 _ _ start1 end1 _ strand1 _ _) == (Gtf chr2 _ _ start2 end2 _ strand2 _ _)
+       | and [chr1 == chr2, start1 == start2, end1 == end2, strand1 == strand2] = True
+       | otherwise = False
 
 instance Ord Gtf where
     (Gtf chr1 _ _ start1 end1 _ strand1 _ _) `compare` (Gtf chr2 _ _ start2 end2 _ strand2 _ _)  
+       | chr1 < chr2 = LT
+       | chr1 > chr2 = GT
        | and [chr1 == chr2, end1 < start2, start1 < end1, start2 < end2] = LT
        | and [chr1 == chr2, end2 < start1, start1 < end1, start2 < end2] = GT
-       | otherwise = compare chr1 chr2
+       | chr1 == chr2 = compare (start1 + end1) (end1 + end2) 
+       | otherwise = compare start1 start2
 
 -- 
 data Bed = Bed 
@@ -78,6 +79,12 @@ data Interval = Interval
            , end_interval   :: !Int
            } deriving (Read, Show)
 
+instance Ord Interval where
+    (Interval chr1 start1 end1) `compare` (Interval chr2 start2 end2)
+       | and [chr1 == chr2, start1 < start2, start1 < end1, start2 < end2] = LT
+       | and [chr1 == chr2, start2 < start1, start1 < end1, start2 < end2] = GT
+       | otherwise = compare chr1 chr2
+
 instance Eq Interval where
     (Interval chr1 start1 end1) == (Interval chr2 start2 end2)
       | and [chr1 == chr2, start1 <= start2, start2 <= end1, end1 <= end2, start1 < end1, start2 < end2] = True
@@ -86,12 +93,13 @@ instance Eq Interval where
       | and [chr1 == chr2, start2 <= start1, end2 >= end1, start1 < end1, start2 < end2] = True
       | otherwise = False
 
-instance Ord Interval where
-    (Interval chr1 start1 end1) `compare` (Interval chr2 start2 end2)
-       | and [chr1 == chr2, end1 < start2, start1 < end1, start2 < end2] = LT
-       | and [chr1 == chr2, end2 < start1, start1 < end1, start2 < end2] = GT
-       | otherwise = compare chr1 chr2
-
+overlapGtf :: Gtf -> Gtf -> Bool
+overlapGtf  (Gtf chr1 _ _ start1 end1 _ strand1 _ _) (Gtf chr2 _ _ start2 end2 _ strand2 _ _)
+      | and [chr1 == chr2, start1 <= start2, start2 <= end1, end1 <= end2, start1 < end1, start2 < end2] = True
+      | and [chr1 == chr2, start2 <= start1, start1 <= end2, end2 <= end1, start1 < end1, start2 < end2] = True
+      | and [chr1 == chr2, start1 <= start2, end1 >= end2, start1 < end1, start2 < end2] = True
+      | and [chr1 == chr2, start2 <= start1, end2 >= end1, start1 < end1, start2 < end2] = True
+      | otherwise = False
 
 gtfToInterval :: Gtf -> Interval
 gtfToInterval (Gtf chr _ _ start end _ strand _ _) = Interval chr start end
@@ -127,7 +135,7 @@ gtfLineParser = do
 
 -- sort by strand
 sortGtf :: [Gtf] -> [[Gtf]]
-sortGtf = L.sort . L.groupBy ((==) `on` strand_gtf) . L.sortBy (comparing strand_gtf) 
+sortGtf = map L.sort . L.groupBy ((==) `on` strand_gtf) . L.sortBy (comparing strand_gtf) 
 
 mergeGtf :: Gtf -> Gtf -> Gtf
 mergeGtf g1 g2 = Gtf (chr_gtf g1)
@@ -141,17 +149,42 @@ mergeGtf g1 g2 = Gtf (chr_gtf g1)
                      (if n1 == n2 then n1 else mergeName n1 n2)
                          where n1 = gene_name_gtf g1
                                n2 = gene_name_gtf g2
-                               mergeName x1 x2 = B.intercalate "," $ Set.toList $ Set.fromList $ x2 : B.split (Bi.c2w ',') x1
+                               mergeName x1 x2 = B.intercalate "_" $ Set.toList $ Set.fromList $ x2 : B.split (Bi.c2w '_') x1
+
+checkIfGtfSorted :: [Gtf] -> (Bool, Int)
+checkIfGtfSorted [] = (True, 0)
+checkIfGtfSorted [x] = (True, 0)
+checkIfGtfSorted gs = S.headDef (True, 0) $ L.dropWhile (\x -> (fst x) == False) $ L.scanl' moveComparisonGtf (True, 0) $ map compareGtf $ zip gs (drop 1 gs)
+     where compareGtf (g1, g2) = (g1 <= g2, 1)
+           moveComparisonGtf (b1, n1) (b2, n2) = (b1 && b2, n1 + n2)
+
+example1 = do
+    input <- unsafeMMapFile "/Users/minzhang/Documents/private_git/BioParsers/data/gencode.vM8.annotation.exon.10k.gtf"
+    let xs = Maybe.fromJust $ readGtf input
+    let ys = map mergeGtfList $ sortGtf xs
+    return xs
+--    print $ length $ head ys 
+--    print $ last ys
+--    let z = B.concat $ map showGtf $ xs
+--    let res = Maybe.fromJust $ readGtf z
+--    print res
+
 
 mergeGtfList :: [Gtf] -> [Gtf]
 mergeGtfList [] = []
 mergeGtfList [x] = [x]
-mergeGtfList [x, y] = if x == y then [mergeGtf x y] else [x, y]
+mergeGtfList [x, y] = if overlapGtf x y then [mergeGtf x y] else [x, y]
 mergeGtfList xs
-  | a == b = mergeGtfList (mergeGtf a b : drop 2 xs)
-  | a /= b = a : mergeGtfList (drop 1 xs)
+  | overlapGtf a b = mergeGtfList (mergeGtf a b : drop 2 xs)
+  | otherwise = a : mergeGtfList (drop 1 xs)
     where a = head xs
           b = head $ drop 1 xs
+
+mergeGtfList2 :: [Gtf] -> [Gtf]
+mergeGtfList2 xs = 
+  if xs == mergeGtfList xs
+  then mergeGtfList xs
+  else mergeGtfList2 $ L.sort $ mergeGtfList xs
 
 showGtf :: Gtf -> Bi.ByteString
 showGtf (Gtf chr source feature start end score strand frame gene_name) =
@@ -161,7 +194,10 @@ showGtf (Gtf chr source feature start end score strand frame gene_name) =
                        , score
                        , strand
                        , frame
-                       , B.concat ["gene_name \"", gene_name, "\";\n"]
+                       , B.concat ["gene_id \"", gene_name, "\"; "
+                                 , "transcript_name \"", B.append gene_name ".tx", "\"; "
+                                 , "transcript_id \"", B.append gene_name ".1", "\"; "
+                                 , "gene_name \"", gene_name, "\";\n"]
                        ]
 
 outputGtf :: [Gtf] -> Bi.ByteString
@@ -185,21 +221,21 @@ outputBed = B.concat . map showBed
 
 
 example = do
-    input <- B.take 10000 <$> B.readFile "/Users/minzhang/Documents/private_git/BioParsers/data/gencode.vM8.annotation.exon.gtf"
+    input <- B.take 40000 <$> B.readFile "/Users/minzhang/Documents/private_git/BioParsers/data/gencode.vM8.annotation.exon.gtf"
     let xs = Maybe.fromJust $ readGtf input
     print $ map length $ sortGtf xs
     let ys = map mergeGtfList $ sortGtf xs
     print $ length $ head ys 
     print $ last ys
-    let z = B.concat $ map showGtf $ xs
-    let res = Maybe.fromJust $ readGtf z
-    print res
+--    let z = B.concat $ map showGtf $ xs
+--    let res = Maybe.fromJust $ readGtf z
+--    print res
 
 collapseGtf input outputs = do
-    gtf <- Maybe.fromJust . readGtf <$> B.readFile input
+    gtf <- Maybe.fromJust . readGtf <$> unsafeMMapFile input
     let [plusStrand, minusStrand] = sortGtf gtf
-    let plusStrandMerged = mergeGtfList plusStrand
-    let minusStrandMerged = mergeGtfList minusStrand
+    let plusStrandMerged = mergeGtfList2 plusStrand
+    let minusStrandMerged = mergeGtfList2 minusStrand
     let outputPlus = outputs ++ "plus.gtf" 
     let outputMinus = outputs ++ "minus.gtf"
     B.writeFile outputPlus (outputGtf plusStrandMerged)
