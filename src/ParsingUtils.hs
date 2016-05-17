@@ -38,6 +38,8 @@ pd = Bi.c2w '#'
 tb = Bi.c2w '\t'
 sm = Bi.c2w ';'
 qt = Bi.c2w '\"'
+cl = Bi.c2w ':'
+cm = Bi.c2w ','
 
 toTuple x y = (x, y)
 
@@ -47,10 +49,19 @@ bsToInt = read . init . drop 1 . show
 intToBs :: Int -> Bi.ByteString
 intToBs = B8.pack . show 
 
+bsToFloat :: B.ByteString -> Float
+bsToFloat = read . init . drop 1 . show
+
+floatToBs :: Float -> B.ByteString
+floatToBs = B8.pack . show
 
 isEndOfLine w = w == 13 || w == 10
 
 isDigit w = w - 48 <= 9
 
+isCl w = w == cl
+
 isQt w = w == qt
+
+isSm w = w == sm
 
